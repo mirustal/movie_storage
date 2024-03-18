@@ -149,7 +149,7 @@ func (db *API) AddActor(ctx context.Context, actor models.ActorResponse) (models
     } else {
         return models.Actor{}, fmt.Errorf("The actor already exists")
     }
-
+ 
 
     query := `
         INSERT INTO actors (name, gender, birth_date)
