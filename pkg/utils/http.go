@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 
@@ -64,4 +65,24 @@ func DecodeJSONRequest(w http.ResponseWriter, r *http.Request, body interface{})
         return false
     }
     return true
+}
+
+func SetCookie(w http.ResponseWriter, name, value string) {
+	if name == "userid"{
+		cookie := &http.Cookie{
+			Name:    name,
+			Value:   value,
+		}
+		http.SetCookie(w, cookie)
+		return
+	}
+
+	cookie := &http.Cookie{
+		Name:    name,
+		Value:   value,
+		Expires: time.Now().Add(24 * time.Hour), 
+	}
+
+
+	http.SetCookie(w, cookie)
 }

@@ -3,9 +3,11 @@ module movie_storage
 go 1.22.1
 
 require (
+	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/golang-migrate/migrate/v4 v4.17.0
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/lib/pq v1.10.9
+	golang.org/x/crypto v0.17.0
 )
 
 require (

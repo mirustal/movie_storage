@@ -11,6 +11,7 @@ type Handlers interface {
 	AddActor(w http.ResponseWriter, r *http.Request)
 	DeleteActor(w http.ResponseWriter, r *http.Request)
 	UpdateActor(w http.ResponseWriter, r *http.Request)
+	LoginUser(w http.ResponseWriter, r *http.Request)
 	RegisterUser(w http.ResponseWriter, r *http.Request)
 	GetToken(w http.ResponseWriter, r *http.Request)
 	RefreshToken(w http.ResponseWriter, r *http.Request)

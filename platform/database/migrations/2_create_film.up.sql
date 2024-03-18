@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS movies (
-    id UUID PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     title VARCHAR(150) NOT NULL,
     description TEXT CHECK (length(description) <= 1000),
     release_date DATE NOT NULL,

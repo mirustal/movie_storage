@@ -22,6 +22,10 @@ var (
         Code:    http.StatusOK,
         Message: "Ok",
     }
+	UnAuthorized = ErrorCode{
+		Code:	http.StatusUnauthorized,
+		Message: "authorized failed",
+	} 
 
 )
 
