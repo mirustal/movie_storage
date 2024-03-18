@@ -7,7 +7,7 @@ http:
   port: :8081
 
 postgressdb:
-  host: localhost
+  host: postgres-instance
   port: 5432
   user: admin
   name: admin
