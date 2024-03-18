@@ -25,3 +25,7 @@ type ParamsFilmRequest struct {
 	FilmQuery  string
 	ActorQuery string
 }
+
+type ActorsIdRequest struct {
+	ActorID []string `json:"str"`
+}

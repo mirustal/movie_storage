@@ -1,6 +1,7 @@
 package utils
 
 import (
+
 	"movie_storage/internal/models"
 	"os"
 	"time"
@@ -14,10 +15,22 @@ var jwtSecretKey = os.Getenv("CONFIG_PATH")
 func ValidatePayloadToken(body models.LoginRequest, claims jwt.MapClaims) bool {
     claimsUsername, okUsername := claims["username"].(string)
     claimsPassword, okPassword := claims["password"].(string)
+
     if !okUsername || !okPassword || claimsUsername != body.Username || claimsPassword != body.Password {
         return false
     }
 
+    return true
+}
+
+func ValidateToken(body models.LoginRequest, claims jwt.MapClaims) bool {
+    _, okUsername := claims["username"].(string)
+
+    _, okPassword := claims["password"].(string)
+
+    if !okUsername || !okPassword{
+        return false
+    }
     return true
 }
 

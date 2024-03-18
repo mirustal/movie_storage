@@ -1,0 +1,6 @@
+SELECT a.id, a.name, json_agg(json_build_object('title', m.title, 'release_date', m.release_date, 'rating', m.rating)) AS movies
+FROM actors a
+JOIN actors_movies am ON a.id = am.actor_id
+JOIN movies m ON am.movie_id = m.id
+GROUP BY a.id
+ORDER BY a.name;

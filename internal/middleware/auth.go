@@ -1,6 +1,7 @@
-
 package middleware
+
 import (
+	"fmt"
 	"movie_storage/internal/models"
 	"movie_storage/pkg/utils"
 	"net/http"
@@ -22,7 +23,10 @@ func Auth(next http.Handler) http.Handler {
 		}
 
 		var body models.LoginRequest
-		if ok := utils.DecodeJSONRequest(w, r, &body); !ok {
+		err = utils.DecodeJSONRequest(w, r, &body);
+		if err != nil {
+			fmt.Printf("error bad json body: %v\n", err)
+			http.Error(w, fmt.Sprintf("error bad json body: %v", err), http.StatusBadRequest)
 			return
 		}
 
@@ -41,4 +45,22 @@ func Auth(next http.Handler) http.Handler {
 	})
 }
 
+
+func AuthOnlyToken(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie("accesst")
+		if err != nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		_, errParse := utils.ParseAccessToken(cookie.Value)
+		if errParse != nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
 

@@ -9,11 +9,12 @@ import (
 
 
 type Storage interface {
-	GetMovies(ctx context.Context, sortParam, orderParam, titleParam, actorNameParam string) ([]Movie, error)
-	AddMovie(ctx context.Context, movie models.MovieResponse) (Movie, error)
+	GetMovies(ctx context.Context, typeGet string) ([]MovieResponseActor, error)
+	SearchMovies(ctx context.Context, search string) ([]MovieResponseActor, error)
+	AddMovie(ctx context.Context, movie models.MovieResponse) (MovieResponseActor, error)
 	DeleteMovie(ctx context.Context, movieID string) error
 	UpdateMovie(ctx context.Context, movieID string, movie models.MovieResponse) (Movie, error)
-	GetActorMovies(ctx context.Context, actorID string) ([]Movie, error)
+	GetActorsMovies(ctx context.Context, actorID models.ActorsIdRequest) ([]ActorWithMovies, error)
 	AddActor(ctx context.Context, actor ActorResponse) (Actor, error)
 	DeleteActor(ctx context.Context, actorID string) error
 	UpdateActor(ctx context.Context, actorID string, actor ActorResponse) (Actor, error)

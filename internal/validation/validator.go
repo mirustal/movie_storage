@@ -3,6 +3,7 @@ package validation
 import (
 	"context"
 	"errors"
+	"fmt"
 	"movie_storage/internal/models"
 	"movie_storage/internal/models/queries"
 )
@@ -33,8 +34,8 @@ func (db *ValidationService) DeleteActor(ctx context.Context, actorId string) (e
 }
 
 // ActorsActorIdMoviesGet - Получение списка фильмов с участнием актера
-func (db *ValidationService) GetActorMovies(ctx context.Context, actorId string) ([]models.Movie, error) {
-	ans, err := db.requestApi.GetActorMovies(ctx, actorId)
+func (db *ValidationService) GetActorsMovies(ctx context.Context, actorId models.ActorsIdRequest) ([]models.ActorWithMovies, error) {
+	ans, err := db.requestApi.GetActorsMovies(ctx, actorId)
 	if err != nil {
 		return nil, err
 	}
@@ -57,14 +58,25 @@ func (db *ValidationService) AddActor(ctx context.Context, actor models.ActorRes
 		return models.Actor{}, err
 	}
 	return ans, nil
-
 }
 
 
 
-// MoviesGet - Получение списка фильмов с сортировкой и поиском
-func (db *ValidationService) GetMovies(ctx context.Context, sort string, order string, title string, actorName string) ([]models.Movie, error) {
-	ans, err := db.requestApi.GetMovies(ctx, sort, order, title, actorName)
+// MoviesGet - Получение списка фильмов 
+func (db *ValidationService) GetMovies(ctx context.Context, typeGet string) ([]models.MovieResponseActor, error) {
+	if typeGet != "title" && typeGet != "date" && typeGet != "rating" && typeGet != "" {
+        return nil, fmt.Errorf("This type of receipt is not suitable ")
+    }
+	ans, err := db.requestApi.GetMovies(ctx, typeGet)
+	if err != nil {
+		return nil, err
+	}
+	return ans, nil
+}
+
+// MoviesSearch - Получение списка фильмов с сортировкой и поиском
+func (db *ValidationService) SearchMovies(ctx context.Context, search string) ([]models.MovieResponseActor, error) {
+	ans, err := db.requestApi.SearchMovies(ctx, search)
 	if err != nil {
 		return nil, err
 	}
@@ -90,10 +102,10 @@ func (db *ValidationService) UpdateMovie(ctx context.Context, movieId string, mo
 }
 
 // MoviesPost - Добавление фильма
-func (db *ValidationService) AddMovie(ctx context.Context, movie models.MovieResponse) (models.Movie, error) {
+func (db *ValidationService) AddMovie(ctx context.Context, movie models.MovieResponse) (models.MovieResponseActor, error) {
 	ans, err := db.requestApi.AddMovie(ctx, movie)
 	if err != nil {
-		return models.Movie{}, err
+		return models.MovieResponseActor{}, err
 	}
 	return ans, nil
 }
@@ -108,6 +120,13 @@ func (db *ValidationService) LoginUser(ctx context.Context, userId string, user 
 
 // RegisterPost - Регистрация пользователя и выдача токенов
 func (db *ValidationService) RegisterUser(ctx context.Context, user models.RegisterRequest) (models.UserResponse, error) {
+	if user.Username == "" {
+        return models.UserResponse{}, fmt.Errorf("username is required")
+    }
+    if user.Password == "" {
+        return models.UserResponse{}, fmt.Errorf("password is required")
+    }
+
 	ans, err := db.requestApi.RegisterUser(ctx, user)
 	if err != nil {
 		return models.UserResponse{}, err

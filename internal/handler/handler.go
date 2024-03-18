@@ -36,31 +36,52 @@ func (han *Handler) DeleteActor(w http.ResponseWriter, r *http.Request) {
 
 // ActorsActorIdMoviesGet - Получение списка фильмов с участнием актера
 func (han *Handler) GetActorMovies(w http.ResponseWriter, r *http.Request) {
+	var body models.ActorsIdRequest
+	err := DecodeJSONRequest(w, r, &body);
+	if err != nil {
+		fmt.Printf("error bad json body: %v\n", err)
+		http.Error(w, fmt.Sprintf("error bad json body: %v", err), http.StatusBadRequest)
+		return
+	}
+	fmt.Println(body)
+	answer, err := han.handler.GetActorsMovies(context.TODO(), body)
+	if err != nil {
+		fmt.Printf("error get actor: %v\n", err)
+		http.Error(w, fmt.Sprintf("Error get actor: %v", err), http.StatusBadRequest)
+		return
+	}
+	EncodeJSONResponse(answer, &GetErrorCode(OkRequest).Code, w)
+
 
 }
 
-// ActorsActorIdPatch - Изменение информации об актёре
+
 func (han *Handler) UpdateActor(w http.ResponseWriter, r *http.Request) {
 	actorID := r.PathValue("actorId")
 	var body models.ActorResponse
-	if ok := DecodeJSONRequest(w, r, &body); !ok {
-		return 
+	err := DecodeJSONRequest(w, r, &body);
+	if err != nil {
+		fmt.Printf("error bad json body: %v\n", err)
+		http.Error(w, fmt.Sprintf("error bad json body: %v", err), http.StatusBadRequest)
+		return
 	}
 
 	answer, err := han.handler.UpdateActor(context.TODO(), actorID, body)
 	if err != nil {
-    fmt.Printf("error updating actor: %v\n", err)
-    http.Error(w, fmt.Sprintf("Error updating actor: %v", err), http.StatusBadRequest)
-	return
+		fmt.Printf("error updating actor: %v\n", err)
+		http.Error(w, fmt.Sprintf("Error updating actor: %v", err), http.StatusBadRequest)
+		return
 	}
 
-	// Если ошибки нет, продолжаем с отправкой успешного ответа
 	EncodeJSONResponse(answer, &GetErrorCode(OkRequest).Code, w)
 }
 // ActorsPost - Добавление актёра
 func (han *Handler) AddActor(w http.ResponseWriter, r *http.Request) {
 	var body models.ActorResponse
-	if ok := DecodeJSONRequest(w, r, &body); !ok {
+	err := DecodeJSONRequest(w, r, &body);
+	if err != nil {
+		fmt.Printf("error bad json body: %v\n", err)
+		http.Error(w, fmt.Sprintf("error bad json body: %v", err), http.StatusBadRequest)
 		return
 	}
 	
@@ -70,7 +91,9 @@ func (han *Handler) AddActor(w http.ResponseWriter, r *http.Request) {
 		BirthDate: body.BirthDate,
 	})
 	if err != nil {
-		log.Println(err)
+		fmt.Printf("error add actor: %v\n", err)
+		http.Error(w, fmt.Sprintf("Error add actor: %v", err), http.StatusBadRequest)
+		return
 	}
 
 	EncodeJSONResponse(answer, &GetErrorCode(OkRequest).Code, w)
@@ -79,8 +102,31 @@ func (han *Handler) AddActor(w http.ResponseWriter, r *http.Request) {
 
 // MoviesGet - Получение списка фильмов с сортировкой и поиском
 func (han *Handler) GetMovies(w http.ResponseWriter, r *http.Request) {
+	typeGet := r.PathValue("typeGet")
+	answer, err := han.handler.GetMovies(context.TODO(), typeGet)
+	if err != nil {
+		fmt.Printf("error get movie: %v\n", err)
+		http.Error(w, fmt.Sprintf("Error get movie: %v", err), http.StatusBadRequest)
+		return
+	}
 
+	EncodeJSONResponse(answer, &GetErrorCode(OkRequest).Code, w)
 }
+
+// MoviesGet - Получение списка фильмов с сортировкой и поиском
+func (han *Handler) SearchMovies(w http.ResponseWriter, r *http.Request) {
+	typeGet := r.PathValue("search")
+	answer, err := han.handler.SearchMovies(context.TODO(), typeGet)
+	if err != nil {
+		fmt.Printf("error search movie: %v\n", err)
+		http.Error(w, fmt.Sprintf("Error search movie: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	EncodeJSONResponse(answer, &GetErrorCode(OkRequest).Code, w)
+}
+
+
 
 // MoviesMovieIdDelete - Удаление фильма
 func (han *Handler) DeleteMovie(w http.ResponseWriter, r *http.Request) {
@@ -96,7 +142,10 @@ func (han *Handler) DeleteMovie(w http.ResponseWriter, r *http.Request) {
 func (han *Handler) UpdateMovie(w http.ResponseWriter, r *http.Request) {
 	movieId := r.PathValue("movieId")
 	var body models.MovieResponse
-	if ok := DecodeJSONRequest(w, r, &body); !ok {
+	err := DecodeJSONRequest(w, r, &body);
+	if err != nil {
+		fmt.Printf("error bad json body: %v\n", err)
+		http.Error(w, fmt.Sprintf("error bad json body: %v", err), http.StatusBadRequest)
 		return
 	}
 	answer, err := han.handler.UpdateMovie(context.TODO(), movieId, models.MovieResponse{
@@ -106,7 +155,9 @@ func (han *Handler) UpdateMovie(w http.ResponseWriter, r *http.Request) {
 		Rating: body.Rating,
 	})
 	if err != nil {
-		EncodeJSONResponse(err, &GetErrorCode(BadRequest).Code, w)
+		fmt.Printf("error update actor: %v\n", err)
+		http.Error(w, fmt.Sprintf("Error update actor: %v", err), http.StatusBadRequest)
+		return
 	}
 
 	EncodeJSONResponse(answer, &GetErrorCode(OkRequest).Code, w)
@@ -115,26 +166,40 @@ func (han *Handler) UpdateMovie(w http.ResponseWriter, r *http.Request) {
 // MoviesPost - Добавление фильма
 func (han *Handler) AddMovie(w http.ResponseWriter, r *http.Request) {
 	var body models.MovieResponse
-	if ok := DecodeJSONRequest(w, r, &body); !ok {
+	err := DecodeJSONRequest(w, r, &body);
+	if err != nil {
+		fmt.Printf("error bad json body: %v\n", err)
+		http.Error(w, fmt.Sprintf("error bad json body: %v", err), http.StatusBadRequest)
 		return
 	}
-	
+
+	if len(body.Actors) == 0 {
+		fmt.Printf("Actors can't be empty\n")
+		http.Error(w, fmt.Sprintf("Actors can't be empty"), http.StatusBadRequest)
+		return
+	}
 	answer, err := han.handler.AddMovie(context.TODO(), models.MovieResponse{
 		Title: body.Title,
 		Description: body.Description,
 		ReleaseDate: body.ReleaseDate,
 		Rating: body.Rating,
+		Actors: body.Actors,
 	})
 	if err != nil {
-		EncodeJSONResponse(err, &GetErrorCode(BadRequest).Code, w)
-	}
+		fmt.Printf("error add movie: %v\n", err)
+		http.Error(w, fmt.Sprintf("Error updating movie: %v", err), http.StatusBadRequest)
+		return
+		}
 
 	EncodeJSONResponse(answer, &GetErrorCode(OkRequest).Code, w)
 }
 
 func (han *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	var body models.LoginRequest
-	if ok := DecodeJSONRequest(w, r, &body); !ok {
+	err := DecodeJSONRequest(w, r, &body);
+	if err != nil {
+		fmt.Printf("error bad json body: %v\n", err)
+		http.Error(w, fmt.Sprintf("error bad json body: %v", err), http.StatusBadRequest)
 		return
 	}
 	cookieId, err := r.Cookie("userid")
@@ -146,13 +211,19 @@ func (han *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		Password: body.Password,
 	})
 	if err != nil {
-		log.Println(err)
+		if err != nil {
+			fmt.Printf("error login user: %v\n", err)
+			http.Error(w, fmt.Sprintf("Error login user: %v", err), http.StatusBadRequest)
+			return
+			}
 	}
 
 	acs, err := utils.CreateAccessToken(body.Username, body.Password)
 	if err != nil {
-		log.Println(err)
-	}
+		fmt.Printf("error create acecess token: %v\n", err)
+		http.Error(w, fmt.Sprintf("Error acces token: %v", err), http.StatusBadRequest)
+		return
+		}
 
 	utils.SetCookie(w, "accesst", acs)
 
@@ -163,7 +234,10 @@ func (han *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 // RegisterPost - Регистрация пользователя и выдача токенов
 func (han *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	var body models.RegisterRequest
-	if ok := DecodeJSONRequest(w, r, &body); !ok {
+	err := DecodeJSONRequest(w, r, &body);
+	if err != nil {
+		fmt.Printf("error bad json body: %v\n", err)
+		http.Error(w, fmt.Sprintf("error bad json body: %v", err), http.StatusBadRequest)
 		return
 	}
 	answer, err := han.handler.RegisterUser(context.TODO(), models.RegisterRequest{
@@ -172,9 +246,16 @@ func (han *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		Role: body.Role,
 	})
 	if err != nil {
-
-	}
+		fmt.Printf("error Register user: %v\n", err)
+		http.Error(w, fmt.Sprintf("Error register user: %v", err), http.StatusBadRequest)
+		return
+		}
 	acs, err := utils.CreateAccessToken(body.Username, body.Password)
+	if err != nil {
+		fmt.Printf("error create acecess token: %v\n", err)
+		http.Error(w, fmt.Sprintf("Error acces token: %v", err), http.StatusBadRequest)
+		return
+		}
 	utils.SetCookie(w, "accesst", acs)
 	utils.SetCookie(w, "userid", answer.UserId)
 	

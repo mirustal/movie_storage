@@ -27,6 +27,7 @@ var (
 		Message: "authorized failed",
 	} 
 
+
 )
 
 // Функция для получения указателя на ErrorCode

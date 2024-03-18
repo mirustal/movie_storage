@@ -52,9 +52,48 @@ func (db *API) DeleteActor(ctx context.Context, actorId string) (error) {
 }
 
 // ActorsActorIdMoviesGet - Получение списка фильмов с участнием актера
-func (db *API) GetActorMovies(ctx context.Context, actorId string) ([]models.Movie, error) {
+func (db *API) GetActorsMovies(ctx context.Context, actorIds models.ActorsIdRequest) ([]models.ActorWithMovies, error) {
+    actorsWithMovies := []models.ActorWithMovies{}
 
-	return nil, nil
+    for _, actorId := range actorIds.ActorID {
+        actorWithMovies := models.ActorWithMovies{}
+        
+        // Получаем информацию об актёре
+        actorQuery := `SELECT id, name FROM actors WHERE id = $1;`
+        err := db.db.QueryRowContext(ctx, actorQuery, actorId).Scan(&actorWithMovies.ID, &actorWithMovies.Name)
+        if err != nil {
+            if err == sql.ErrNoRows {
+                continue // Актёр не найден, переходим к следующему ID
+            }
+            return nil, fmt.Errorf("querying actor info: %v", err)
+        }
+
+        // Получаем фильмы актёра
+        moviesQuery := `
+            SELECT m.title, m.release_date, m.rating 
+            FROM movies m
+            JOIN actors_movies am ON m.id = am.movie_id
+            WHERE am.actor_id = $1;`
+        rows, err := db.db.QueryContext(ctx, moviesQuery, actorId)
+        if err != nil {
+            return nil, fmt.Errorf("querying actor's movies: %v", err)
+        }
+        defer rows.Close()
+
+        movies := []models.MovieDetail{}
+        for rows.Next() {
+            var movie models.MovieDetail
+            if err := rows.Scan(&movie.Title, &movie.ReleaseDate, &movie.Rating); err != nil {
+                return nil, fmt.Errorf("scanning movie: %v", err)
+            }
+            movies = append(movies, movie)
+        }
+        
+        actorWithMovies.Movies = movies
+        actorsWithMovies = append(actorsWithMovies, actorWithMovies)
+    }
+
+    return actorsWithMovies, nil
 }
 
 // ActorsActorIdPatch - Изменение информации об актёре
@@ -102,14 +141,23 @@ func (db *API) UpdateActor(ctx context.Context, actorId string, actor models.Act
 
 // ActorsPost - Добавление актёра
 func (db *API) AddActor(ctx context.Context, actor models.ActorResponse) (models.Actor, error) {
+
+	var existingActorID int
+	checkQuery := `SELECT id FROM actors WHERE name = $1 AND birth_date = $2 AND gender = $3`
+    err := db.db.QueryRowContext(ctx, checkQuery, actor.Name, actor.BirthDate, actor.Gender).Scan(&existingActorID)
+    if err != nil {
+    } else {
+        return models.Actor{}, fmt.Errorf("The actor already exists")
+    }
+
+
     query := `
         INSERT INTO actors (name, gender, birth_date)
         VALUES ($1, $2, $3)
         RETURNING id;
     `
-
     var actorID string
-    err := db.db.QueryRowContext(ctx, query, actor.Name, actor.Gender, actor.BirthDate).Scan(&actorID)
+    err = db.db.QueryRowContext(ctx, query, actor.Name, actor.Gender, actor.BirthDate).Scan(&actorID)
     if err != nil {
         return models.Actor{}, fmt.Errorf("failed to add actor: %w", err)
     }
@@ -124,9 +172,135 @@ func (db *API) AddActor(ctx context.Context, actor models.ActorResponse) (models
 
 
 // MoviesGet - Получение списка фильмов с сортировкой и поиском
-func (db *API) GetMovies(ctx context.Context, sort string, order string, title string, actorName string) ([]models.Movie, error) {
+func (db *API) GetMovies(ctx context.Context, typeGet string) ([]models.MovieResponseActor, error) {
+    orderBy := "rating DESC" // Сортировка по умолчанию
 
-	return []models.Movie{}, nil
+    // Определяем столбец сортировки в зависимости от входного параметра
+    switch typeGet {
+    case "title":
+        orderBy = "title ASC"
+    case "releaseDate":
+        orderBy = "release_date ASC"
+    case "rating":
+        orderBy = "rating DESC"
+    }
+
+    query := fmt.Sprintf(`
+        SELECT id, title, description, release_date, rating
+        FROM movies
+        ORDER BY %s;`, orderBy)
+
+    rows, err := db.db.QueryContext(ctx, query)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    var movies []models.MovieResponseActor
+    for rows.Next() {
+        var movie models.MovieResponseActor
+        err := rows.Scan(&movie.Id, &movie.Title, &movie.Description, &movie.ReleaseDate, &movie.Rating)
+        if err != nil {
+            return nil, err
+		}
+		movie.ReleaseDate = strings.Split(movie.ReleaseDate, ":")[0]
+        movies = append(movies, movie)
+    }
+
+    if err = rows.Err(); err != nil {
+        return nil, err
+    }
+
+    for i := range movies {
+        var actorIDs []int
+        queryActors := `SELECT actor_id FROM actors_movies WHERE movie_id = $1;`
+        actorRows, err := db.db.QueryContext(ctx, queryActors, movies[i].Id)
+        if err != nil {
+            return nil, err
+        }
+
+        for actorRows.Next() {
+            var actorID int
+            if err := actorRows.Scan(&actorID); err != nil {
+                actorRows.Close()
+                return nil, err
+            }
+            actorIDs = append(actorIDs, actorID)
+        }
+        actorRows.Close() // Закрываем соединение после обработки каждого набора строк
+
+        for _, actorID := range actorIDs {
+            var actor models.Actor
+            actorQuery := `SELECT id, name, birth_date FROM actors WHERE id = $1;`
+            if err := db.db.QueryRowContext(ctx, actorQuery, actorID).Scan(&actor.Id, &actor.Name, &actor.BirthDate); err != nil {
+                return nil, fmt.Errorf("querying actor info: %v", err)
+            }
+            movies[i].Actors = append(movies[i].Actors, actor)
+        }
+    }
+
+    return movies, nil
+}
+
+
+func (db *API) SearchMovies(ctx context.Context, searchQuery string) ([]models.MovieResponseActor, error) {
+
+    query := `
+        SELECT DISTINCT m.id, m.title, m.release_date, m.rating
+        FROM movies m
+        LEFT JOIN actors_movies am ON m.id = am.movie_id
+        LEFT JOIN actors a ON am.actor_id = a.id
+        WHERE m.title ILIKE $1 OR a.name ILIKE $1
+        ORDER BY m.rating DESC;
+    `
+
+    searchPattern := "%" + searchQuery + "%"
+
+    rows, err := db.db.QueryContext(ctx, query, searchPattern)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    var movies []models.MovieResponseActor
+    for rows.Next() {
+        var movie models.MovieResponseActor
+        err := rows.Scan(&movie.Id, &movie.Title, &movie.ReleaseDate, &movie.Rating)
+        if err != nil {
+            return nil, err
+        }
+
+        actorsQuery := `
+            SELECT a.id, a.name, a.gender, a.birth_date
+            FROM actors a
+            JOIN actors_movies am ON a.id = am.actor_id
+            WHERE am.movie_id = $1;
+        `
+        actorRows, actorErr := db.db.QueryContext(ctx, actorsQuery, movie.Id)
+        if actorErr != nil {
+            return nil, actorErr
+        }
+
+        var actors []models.Actor
+        for actorRows.Next() {
+            var actor models.Actor
+            if err := actorRows.Scan(&actor.Id, &actor.Name, &actor.Gender, &actor.BirthDate); err != nil {
+                actorRows.Close() 
+                return nil, err
+            }
+            actors = append(actors, actor)
+        }
+        actorRows.Close() 
+
+        movie.Actors = actors 
+        movies = append(movies, movie)
+    }
+
+    if err = rows.Err(); err != nil {
+        return nil, err
+    }
+
+    return movies, nil
 }
 
 // MoviesMovieIdDelete - Удаление фильма
@@ -190,26 +364,84 @@ func (db *API) UpdateMovie(ctx context.Context, movieId string, movie models.Mov
 }
 
 // MoviesPost - Добавление фильма
-func (db *API) AddMovie(ctx context.Context, movie models.MovieResponse) (models.Movie, error) {
-	query := `
-	INSERT INTO movies (title, description, release_date, rating)
-	VALUES ($1, $2, $3, $4)
-	RETURNING id;
-`
+func (db *API) AddMovie(ctx context.Context, movie models.MovieResponse) (models.MovieResponseActor, error) {
+	var existingMovieID int
+	movieRating, err := strconv.ParseFloat(movie.Rating, 3)
+	truncatedStr := fmt.Sprintf("%.1f", movieRating)
+	movieRating, err = strconv.ParseFloat(truncatedStr, 3)
 
-	var userID string
-	err := db.db.QueryRowContext(ctx, query, movie.Title, movie.Description, movie.ReleaseDate, movie.Rating).Scan(&userID)
+	checkQuery := `SELECT id FROM movies WHERE title = $1 AND release_date = $2 AND rating = $3`
+    err = db.db.QueryRowContext(ctx, checkQuery, movie.Title, movie.ReleaseDate, movieRating).Scan(&existingMovieID)
+    if err != nil {
+    } else {
+        return models.MovieResponseActor{}, fmt.Errorf("The film already exists")
+    }
+    for _, actorIDStr := range movie.Actors {
+        var actorID int
+        if _, err := fmt.Sscanf(actorIDStr, "%d", &actorID); err != nil {
+            return models.MovieResponseActor{}, fmt.Errorf("invalid actor ID format: %v", err)
+        }
+
+        var exists bool
+        err = db.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM actors WHERE id = $1)", actorID).Scan(&exists)
+        if err != nil || !exists {
+            return models.MovieResponseActor{}, fmt.Errorf("actor with ID %d not found", actorID)
+        }
+    }
+
+	var movieID int
+	query := `
+		INSERT INTO movies (title, description, release_date, rating)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id;
+	`
+	err = db.db.QueryRowContext(ctx, query, movie.Title, movie.Description, movie.ReleaseDate, movieRating).Scan(&movieID)
 	if err != nil {
-		return models.Movie{}, err
+		return models.MovieResponseActor{}, err
 	}
 
-	return models.Movie{
-		Id: userID,
-		Title: movie.Title,
-		Description: movie.Description,
-		ReleaseDate: movie.ReleaseDate,
-		Rating: movie.Rating,
-	}, nil
+    for _, actorIDStr := range movie.Actors {
+        var actorID int
+        if _, err := fmt.Sscanf(actorIDStr, "%d", &actorID); err != nil {
+            return models.MovieResponseActor{}, fmt.Errorf("invalid actor ID format: %v", err)
+        }
+
+        var exists bool
+        err = db.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM actors WHERE id = $1)", actorID).Scan(&exists)
+        if err != nil || !exists {
+            return models.MovieResponseActor{}, fmt.Errorf("actor with ID %d not found", actorID)
+        }
+
+        _, err = db.db.ExecContext(ctx, "INSERT INTO actors_movies (actor_id, movie_id) VALUES ($1, $2)", actorID, movieID)
+        if err != nil {
+
+            return models.MovieResponseActor{}, fmt.Errorf("failed to insert actor-movie relation: %v", err)
+        }
+    }
+	var actors []models.Actor
+	for _, actorIDStr := range movie.Actors {
+	var actor models.Actor
+	actorQuery := `SELECT * FROM actors WHERE id = $1;`
+        err := db.db.QueryRowContext(ctx, actorQuery, actorIDStr).Scan(&actor.Id, &actor.Name, &actor.BirthDate, &actor.BirthDate)
+        if err != nil {
+            if err == sql.ErrNoRows {
+                continue // Актёр не найден, переходим к следующему ID
+            }
+            return models.MovieResponseActor{}, fmt.Errorf("querying actor info: %v", err)
+        }
+	actors = append(actors, actor)
+	}
+
+
+    // Возвращаем добавленный фильм
+    return models.MovieResponseActor{
+        Id:          fmt.Sprintf("%d", movieID),
+        Title:       movie.Title,
+        Description: movie.Description,
+        ReleaseDate: movie.ReleaseDate,
+        Rating:      movie.Rating,
+		Actors: 	actors,
+    }, nil
 }
 
 func (db *API) LoginUser(ctx context.Context, userID string, user models.LoginRequest) (models.UserResponse, error) {
@@ -241,9 +473,16 @@ func (db *API) LoginUser(ctx context.Context, userID string, user models.LoginRe
 
 // RegisterPost - Регистрация пользователя и выдача токенов
 func (db *API) RegisterUser(ctx context.Context, user models.RegisterRequest) (models.UserResponse, error) {
+	checkQuery := `SELECT id FROM users WHERE username = $1`
+    var existingUserId string
+    err := db.db.QueryRowContext(ctx, checkQuery, user.Username).Scan(&existingUserId)
+    if err == nil {
+        return models.UserResponse{}, fmt.Errorf("user with username %s already exists", user.Username)
+    }
+
 	query := `
-		INSERT INTO users (refresh_token, role)
-		VALUES ($1, $2)
+		INSERT INTO users (username, refresh_token, role)
+		VALUES ($1, $2, $3)
 		RETURNING id;
 	`
 
@@ -256,7 +495,7 @@ func (db *API) RegisterUser(ctx context.Context, user models.RegisterRequest) (m
 		user.Role = "reader" 
 	}
 	var userID string
-	err = db.db.QueryRowContext(ctx, query, string(refreshToken), user.Role).Scan(&userID)
+	err = db.db.QueryRowContext(ctx, query, user.Username, string(refreshToken), user.Role).Scan(&userID)
 	if err != nil {
 		return models.UserResponse{}, err
 	}

@@ -4,6 +4,7 @@ import "net/http"
 
 type Handlers interface {
 	GetMovies(w http.ResponseWriter, r *http.Request)
+	SearchMovies(w http.ResponseWriter, r *http.Request)
 	AddMovie(w http.ResponseWriter, r *http.Request)
 	DeleteMovie(w http.ResponseWriter, r *http.Request)
 	UpdateMovie(w http.ResponseWriter, r *http.Request)

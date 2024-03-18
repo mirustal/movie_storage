@@ -19,7 +19,6 @@ var sqlFiles embed.FS
 func (db *Database) MigrateDB(cfg *configs.ConfigPostgressDB) error {
 	ok := db.CheckAndMigrateTables()
 	if ok {
-		fmt.Printf("вернул нил")
 		return nil
 	}
 	d, err := iofs.New(sqlFiles, "migrations")
