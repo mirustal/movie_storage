@@ -12,4 +12,4 @@ postgressdb:
   user: admin
   name: admin
   password: admin
-  database: films
+  database: movie

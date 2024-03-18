@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"movie_storage/pkg/configs"
+
 	_ "github.com/lib/pq"
 )
 
@@ -26,7 +27,6 @@ func NewDatabase(cfg *configs.ConfigPostgressDB) (*Database, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return &Database{db: db}, nil
 }
 
@@ -36,4 +36,6 @@ func (db *Database) Close() {
 
 func (db *Database) GetDB() *sql.DB {
 	return db.db
+
 }
+

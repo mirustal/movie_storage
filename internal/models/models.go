@@ -22,6 +22,7 @@ type Movie struct {
 
 type User struct {
 	Id int64 `json:"id,omitempty"`
+	RefreshToken string 
 	Role string `json:"role"`
 }
 

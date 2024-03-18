@@ -74,9 +74,12 @@ func (db *ValidationService) AddMovie(ctx context.Context, movie models.Movie) (
 
 // RegisterPost - Регистрация пользователя и выдача токенов
 func (db *ValidationService) RegisterUser(ctx context.Context, user models.RegisterRequest) (string, error) {
-	fmt.Println("типа зарегистрировал")
-	fmt.Println(user)
-	return "", nil
+	fmt.Println("типа валидаор")
+	ans, err := db.requestApi.RegisterUser(ctx, user)
+	if err != nil {
+		return "", err
+	}
+	return ans, nil
 }
 
 // TokenGet - Получение информации о текущем токене

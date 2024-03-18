@@ -20,7 +20,10 @@ func NewApp(cfg *configs.Config) *App {
 	if err != nil {
 		return &App{}
 	}
-
+	err = db.MigrateDB(&cfg.PostgresDB)
+	if err != nil {
+		log.Println(err)
+	}
 	storage := database.NewAPI(db.GetDB())
 	validation := validation.NewValidator(storage)
 	handlers := handler.NewHandler(validation)

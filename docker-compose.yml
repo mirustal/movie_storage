@@ -3,7 +3,7 @@ services:
     image: postgres:alpine
     container_name: postgres-instance
     environment:
-      POSTGRES_DB: films
+      POSTGRES_DB: movie
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
     volumes:
@@ -17,7 +17,7 @@ services:
     image: dpage/pgadmin4
     container_name: pgadmin-instance
     environment:
-      PGADMIN_DEFAULT_EMAIL: "admin"
+      PGADMIN_DEFAULT_EMAIL: "admin@admin.com"
       PGADMIN_DEFAULT_PASSWORD: "admin"
     ports:
       - "5050:80"
@@ -37,7 +37,7 @@ services:
       - DATABASE_HOST=postgres-instance
       - DATABASE_USER=admin
       - DATABASE_PASSWORD=admin
-      - DATABASE_NAME=films
+      - DATABASE_NAME=movie
       - DATABASE_PORT=5432
     networks:
       - my-network

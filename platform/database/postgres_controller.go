@@ -79,9 +79,21 @@ func (db *API) AddMovie(ctx context.Context, movie models.Movie) (models.Movie, 
 
 // RegisterPost - Регистрация пользователя и выдача токенов
 func (db *API) RegisterUser(ctx context.Context, user models.RegisterRequest) (string, error) {
-	fmt.Println("типа зарегистрировал")
-	fmt.Println(user)
-	return "", nil
+	query := `
+		INSERT INTO users (refresh_token, role)
+		VALUES ($1, $2)
+		RETURNING id;
+	`
+
+	var userID string
+	err := db.db.QueryRowContext(ctx, query, user.Password, user.Role).Scan(&userID)
+	if err != nil {
+		fmt.Println("Ошибка при регистрации пользователя:", err)
+		return "", err
+	}
+
+	fmt.Println("Пользователь зарегистрирован с ID:", userID)
+	return userID, nil
 }
 
 // TokenGet - Получение информации о текущем токене

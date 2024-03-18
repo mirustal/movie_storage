@@ -1,9 +1,13 @@
 package handler
 
 import (
-	
-	"fmt"
+	"context"
+
+
+	"movie_storage/internal/models"
 	"movie_storage/internal/models/queries"
+	. "movie_storage/pkg/utils"
+
 	"net/http"
 )
 
@@ -64,8 +68,20 @@ func (han *Handler) AddMovie(w http.ResponseWriter, r *http.Request) {
 
 // RegisterPost - Регистрация пользователя и выдача токенов
 func (han *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("типа зарегистрировал")
+	var body models.RegisterRequest
+	if ok := DecodeJSONRequest(w, r, &body); !ok {
+		return
+	}
+	answer, err := han.handler.RegisterUser(context.TODO(), models.RegisterRequest{
+		Username: body.Username,
+		Password: body.Password,
+		Role: body.Role,
+	})
+	if err != nil {
 
+	}
+	
+	EncodeJSONResponse(answer, &GetErrorCode(OkRequest).Code, w)
 }
 
 // TokenGet - Получение информации о текущем токене

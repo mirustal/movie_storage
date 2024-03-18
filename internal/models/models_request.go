@@ -11,7 +11,7 @@ type MovieRequest struct {
 type RegisterRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
-	Admin bool `json:"admin,omitempty"`
+	Role string `json:"role,omitempty"`
 }
 
 type ParamsFilmRequest struct {
